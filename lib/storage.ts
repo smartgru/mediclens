@@ -2,7 +2,20 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { FileIndex } from "@/lib/types";
 
-const rootDir = process.cwd();
+function resolveStorageRoot(): string {
+  if (process.env.STORAGE_ROOT_DIR) {
+    return process.env.STORAGE_ROOT_DIR;
+  }
+
+  // Vercel runtime code directory (/var/task) is read-only. Use /tmp instead.
+  if (process.env.VERCEL === "1") {
+    return "/tmp/mediclens";
+  }
+
+  return process.cwd();
+}
+
+const rootDir = resolveStorageRoot();
 const uploadDir = path.join(rootDir, "uploads");
 const indexDir = path.join(rootDir, "data", "indexes");
 

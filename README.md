@@ -17,8 +17,7 @@ End-to-end Next.js MVP for medical-record PDF Q&A with citations and in-browser 
   "citations": [
     {
       "page": 1,
-      "quote": "string",
-      "confidence": 0.93
+      "quote": "string"
     }
   ]
 }
@@ -102,3 +101,4 @@ npm run dev
 - Questions/answers are not stored to disk in this MVP.
 - PDF and parsed index are stored locally.
 - If exact quote rectangle extraction is imperfect, highlights use robust multi-span substring matching over pdf.js text-layer spans.
+- On Vercel, local files are written to `/tmp` (ephemeral). This is suitable for testing but not durable storage across serverless instances.
