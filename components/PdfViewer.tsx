@@ -24,28 +24,6 @@ type PageRender = {
   spans: ViewTextSpan[];
 };
 
-type PdfDocument = {
-  numPages: number;
-  getPage: (pageNumber: number) => Promise<{
-    getViewport: (input: { scale: number }) => {
-      width: number;
-      height: number;
-      scale: number;
-      transform: [number, number, number, number, number, number];
-    };
-    render: (input: {
-      canvasContext: CanvasRenderingContext2D;
-      viewport: {
-        width: number;
-        height: number;
-        scale: number;
-        transform: [number, number, number, number, number, number];
-      };
-    }) => { promise: Promise<void> };
-    getTextContent: () => Promise<{ items: unknown[] }>;
-  }>;
-};
-
 function normalizeWithMap(input: string): { normalized: string; map: number[] } {
   let normalized = "";
   const map: number[] = [];
@@ -100,6 +78,7 @@ function findSpanIndexesForQuote(spans: ViewTextSpan[], quote: string): Set<numb
 }
 
 type PdfJsModule = typeof import("pdfjs-dist");
+type PdfDocument = Awaited<ReturnType<PdfJsModule["getDocument"]>["promise"]>;
 
 export function PdfViewer({
   pdfUrl,
@@ -174,7 +153,8 @@ export function PdfViewer({
       await page.render({ canvasContext: ctx, viewport }).promise;
 
       const text = await page.getTextContent();
-      const spans: ViewTextSpan[] = text.items
+      const rawItems = text.items as unknown[];
+      const spans: ViewTextSpan[] = rawItems
         .filter((item): item is TextItem => {
           return typeof item === "object" && item !== null && "str" in item && "transform" in item;
         })
