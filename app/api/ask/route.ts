@@ -16,6 +16,16 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (process.env.VERCEL === "1" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      {
+        error:
+          "Persistent storage is not configured. Set BLOB_READ_WRITE_TOKEN in Vercel project settings."
+      },
+      { status: 500 }
+    );
+  }
+
   const ip = getClientIp(req);
   if (isRateLimited(`ask:${ip}`)) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });

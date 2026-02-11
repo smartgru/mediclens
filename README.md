@@ -101,4 +101,5 @@ npm run dev
 - Questions/answers are not stored to disk in this MVP.
 - PDF and parsed index are stored locally.
 - If exact quote rectangle extraction is imperfect, highlights use robust multi-span substring matching over pdf.js text-layer spans.
-- On Vercel, local files are written to `/tmp` (ephemeral). This is suitable for testing but not durable storage across serverless instances.
+- On Vercel, configure `BLOB_READ_WRITE_TOKEN` to enable persistent storage via Vercel Blob for uploaded PDFs and indexes.
+- Without persistent storage, `/api/ask` can return `Unknown fileId` because serverless instances do not share local filesystem state.
