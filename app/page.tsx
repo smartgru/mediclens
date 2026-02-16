@@ -17,6 +17,7 @@ export default function HomePage() {
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
+  const [jumpSignal, setJumpSignal] = useState(0);
 
   const firstCitationPage = useMemo(() => {
     return result?.citations?.[0]?.page ?? null;
@@ -61,6 +62,7 @@ export default function HomePage() {
 
   async function onAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (asking) return;
     if (!fileId) {
       setError("Upload a PDF first.");
       return;
@@ -80,6 +82,7 @@ export default function HomePage() {
       if (!res.ok) throw new Error(data?.error ?? "Failed to get answer");
 
       setResult(data as AskResponse);
+      setJumpSignal((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ask failed");
     } finally {
@@ -134,6 +137,18 @@ export default function HomePage() {
             <div>
               <h3>Answer</h3>
               <div className="answer">{result.answer}</div>
+              <h3 style={{ marginTop: 16 }}>Citations</h3>
+              {result.citations.length > 0 ? (
+                <ul className="small">
+                  {result.citations.map((citation, index) => (
+                    <li key={`${citation.page}-${citation.quote}-${index}`}>
+                      Page {citation.page}: &quot;{citation.quote}&quot;
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="small">No citations returned. Viewer jump requires at least one citation.</p>
+              )}
             </div>
           )}
         </section>
@@ -145,6 +160,7 @@ export default function HomePage() {
               pdfUrl={`/api/file/${fileId}`}
               citations={result?.citations ?? []}
               jumpPage={firstCitationPage}
+              jumpSignal={jumpSignal}
             />
           ) : (
             <p className="small">Upload a PDF to view it.</p>

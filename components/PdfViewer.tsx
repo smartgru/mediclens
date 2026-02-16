@@ -24,23 +24,35 @@ type PageRender = {
   spans: ViewTextSpan[];
 };
 
-function normalizeWithMap(input: string): { normalized: string; map: number[] } {
+function canonicalizeChar(input: string): string {
+  if (/[\u2018\u2019]/.test(input)) return "'";
+  if (/[\u201c\u201d]/.test(input)) return '"';
+  if (/[\u2012\u2013\u2014\u2015]/.test(input)) return "-";
+  return input.toLowerCase();
+}
+
+function normalizeWithMap(
+  input: string,
+  options?: { removeWhitespace?: boolean }
+): { normalized: string; map: number[] } {
   let normalized = "";
   const map: number[] = [];
   let lastWasSpace = false;
+  const removeWhitespace = options?.removeWhitespace === true;
 
   for (let i = 0; i < input.length; i += 1) {
     const c = input[i];
     const isSpace = /\s/.test(c);
 
     if (isSpace) {
+      if (removeWhitespace) continue;
       if (!lastWasSpace) {
         normalized += " ";
         map.push(i);
       }
       lastWasSpace = true;
     } else {
-      normalized += c.toLowerCase();
+      normalized += canonicalizeChar(c);
       map.push(i);
       lastWasSpace = false;
     }
@@ -55,13 +67,22 @@ function findSpanIndexesForQuote(spans: ViewTextSpan[], quote: string): Set<numb
 
   const rawNorm = normalizeWithMap(raw);
   const quoteNorm = normalizeWithMap(quote);
-  const matchStartNorm = rawNorm.normalized.indexOf(quoteNorm.normalized.trim().toLowerCase());
+  const quoteTrimmed = quoteNorm.normalized.trim();
+  let matchStartNorm = rawNorm.normalized.indexOf(quoteTrimmed);
+  let activeMap = rawNorm.map;
+  let matchEndNorm = matchStartNorm + quoteTrimmed.length - 1;
 
-  if (matchStartNorm === -1) return new Set<number>();
+  if (matchStartNorm === -1) {
+    const rawCompact = normalizeWithMap(raw, { removeWhitespace: true });
+    const quoteCompact = normalizeWithMap(quote, { removeWhitespace: true });
+    matchStartNorm = rawCompact.normalized.indexOf(quoteCompact.normalized);
+    if (matchStartNorm === -1) return new Set<number>();
+    matchEndNorm = matchStartNorm + quoteCompact.normalized.length - 1;
+    activeMap = rawCompact.map;
+  }
 
-  const matchEndNorm = matchStartNorm + quoteNorm.normalized.trim().length - 1;
-  const rawStart = rawNorm.map[matchStartNorm] ?? 0;
-  const rawEnd = rawNorm.map[matchEndNorm] ?? raw.length - 1;
+  const rawStart = activeMap[matchStartNorm] ?? 0;
+  const rawEnd = activeMap[matchEndNorm] ?? raw.length - 1;
 
   const result = new Set<number>();
   let offset = 0;
@@ -83,11 +104,13 @@ type PdfDocument = Awaited<ReturnType<PdfJsModule["getDocument"]>["promise"]>;
 export function PdfViewer({
   pdfUrl,
   citations,
-  jumpPage
+  jumpPage,
+  jumpSignal
 }: {
   pdfUrl: string;
   citations: Citation[];
   jumpPage: number | null;
+  jumpSignal: number;
 }) {
   const [pdfjs, setPdfjs] = useState<PdfJsModule | null>(null);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
@@ -133,7 +156,7 @@ export function PdfViewer({
     if (jumpPage >= 1 && jumpPage <= doc.numPages) {
       setPageNumber(jumpPage);
     }
-  }, [doc, jumpPage]);
+  }, [doc, jumpPage, jumpSignal]);
 
   useEffect(() => {
     if (!doc || !pdfjs) return;

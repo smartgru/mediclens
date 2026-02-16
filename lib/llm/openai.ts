@@ -20,16 +20,38 @@ function buildContext(topChunks: ChunkIndex[]): string {
     .join("\n\n---\n\n");
 }
 
+function normalizeForMatch(input: string): string {
+  return input
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function includesLoose(pageText: string, quote: string): boolean {
+  const pageNorm = normalizeForMatch(pageText);
+  const quoteNorm = normalizeForMatch(quote);
+  if (!quoteNorm) return false;
+  if (pageNorm.includes(quoteNorm)) return true;
+
+  // Handle PDFs where extractor spacing is inconsistent between spans.
+  const pageCompact = pageNorm.replace(/\s+/g, "");
+  const quoteCompact = quoteNorm.replace(/\s+/g, "");
+  return quoteCompact.length > 0 && pageCompact.includes(quoteCompact);
+}
+
 function validateCitationsExist(output: AskResponse, pages: PageIndex[]): AskResponse {
   const byPage = new Map<number, string>();
   for (const page of pages) {
-    byPage.set(page.pageNumber, page.text.toLowerCase());
+    byPage.set(page.pageNumber, page.text);
   }
 
   const citations = output.citations.filter((citation) => {
     const pageText = byPage.get(citation.page);
     if (!pageText) return false;
-    return pageText.includes(citation.quote.toLowerCase());
+    return includesLoose(pageText, citation.quote);
   });
 
   return {
